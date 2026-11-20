@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>代購報價與訂單系統 v11.7</title>
+    <style>
+        :root { --primary: #ff4757; --bg: #f1f2f6; --accent: #2ed573; --profit: #ffa502; --sec: #1e90ff; }
+        body { font-family: -apple-system, "PingFang TC", "Microsoft JhengHei", sans-serif; background: var(--bg); display: flex; flex-direction: column; align-items: center; padding: 20px; margin: 0; }
+        .card { background: white; width: 100%; max-width: 460px; padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-bottom: 20px; box-sizing: border-box; }
+        h2 { text-align: center; color: #2f3542; margin-top: 0; margin-bottom: 10px; }
+        h3 { color: #2f3542; margin: 0 0 8px; font-size: 1em; }
+        .form-group { margin-bottom: 12px; }
+        .form-row { display: flex; gap: 10px; margin-bottom: 12px; }
+        .form-row .form-group { flex: 1; margin-bottom: 0; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 0.9em; color: #57606f; }
+        input, select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; background: #fff; }
+        button { width: 100%; padding: 14px; background: var(--primary); color: white; border: none; border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        button.btn-sec { background: var(--sec); }
+        button.btn-success { background: var(--accent); }
+        .hint { font-size: 0.8em; color: #747d8c; margin-top: 4px; }
+        .hint a { color: var(--sec); }
+        .url-box { background: #f7f1ff; padding: 10px; border-radius: 8px; }
+        .url-info { font-size: 0.82em; margin-top: 6px; line-height: 1.6; color: #57606f; }
+        .url-info .ok { color: #2ed573; font-weight: bold; }
+        .url-info .bad { color: #ff4757; font-weight: bold; }
+        .url-info .remind { color: #c0392b; }
+        .url-info a { color: var(--sec); }
+        .rate-box { margin-top: 4px; font-size: 0.8em; color: #57606f; }
+        .rate-box b { color: var(--sec); }
+        .rate-box .default { color: #ff4757; font-weight: bold; }
+        .rate-status { font-size: 0.8em; color: #2ed573; font-weight: bold; margin-top: 4px; text-align: right; }
+        .check-box { padding: 10px; border-radius: 8px; }
+        .check-box label { display: flex; align-items: center; margin: 0; }
+        .check-box input { width: auto; margin-right: 8px; }
+        .check-yellow { background: #fff8db; } .check-yellow label { color: #b7791f; }
+        .check-blue { background: #e1f5fe; } .check-blue label { color: #0288d1; }
+        .hidden { display: none !important; }
+
+        .result { margin-top: 20px; padding: 15px; background: #f9f9f9; border-radius: 10px; border-left: 5px solid var(--primary); }
+        .step { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px dashed #e0e0e0; font-size: 1.05em; }
+        .step .no { display: inline-block; width: 22px; height: 22px; line-height: 22px; text-align: center; border-radius: 50%; background: #2f3542; color: #fff; font-size: 0.75em; margin-right: 8px; }
+        .step .val { font-weight: bold; }
+        .formula { font-size: 0.78em; color: #888; margin: 2px 0 4px 30px; }
+        .editable { width: 45%; text-align: right; padding: 6px 10px; font-size: 1.15em; font-weight: bold; border-radius: 6px; box-sizing: border-box; }
+        .editable.price { color: var(--primary); border: 2px dashed var(--primary); }
+        .editable.profit { color: var(--profit); border: 2px dashed var(--profit); }
+        .markup-hint { font-size: 0.8em; color: var(--sec); text-align: right; margin-top: 2px; }
+        .warn { background: #ffeaa7; color: #8a5a00; padding: 8px 10px; border-radius: 8px; font-size: 0.85em; margin-top: 8px; }
+        .warn.red { background: #ffe0dc; color: #c0392b; }
+        .totals { margin-top: 12px; padding-top: 10px; border-top: 1px solid #ddd; }
+        .result-item { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 1em; }
+
+        .notes ul { margin: 0 0 10px; padding-left: 20px; font-size: 0.85em; color: #57606f; line-height: 1.6; }
+
+        .table-container { width: 100%; overflow-x: auto; margin-top: 10px; }
+        .order-table { width: 100%; border-collapse: collapse; font-size: 0.8em; min-width: 720px; }
+        .order-table th, .order-table td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+        .order-table th { background-color: #2f3542; color: white; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<!-- 區塊一：報價計算 -->
+<div class="card">
+    <h2>代購報價系統 v11.7</h2>
+
+    <div class="form-group url-box">
+        <label>0. 貼上官網商品網址（選填，自動帶入路線、品名、色碼）</label>
+        <input type="url" id="productUrl" placeholder="https://shop.lululemon.com/en-ca/p/..." oninput="parseProductUrl()">
+        <div id="urlInfo" class="url-info"></div>
+    </div>
+
+    <div class="form-group">
+        <label>1. 貨源／集運路線</label>
+        <select id="route" onchange="onRouteChange()">
+            <optgroup label="紅海集運">
+                <option value="CA" selected>🇨🇦 加拿大官網（紅海 CAA 線・每磅 144）</option>
+                <option value="US">🇺🇸 美國官網（紅海奧勒岡 BOM 倉 BTK 線・每磅 178）</option>
+            </optgroup>
+            <optgroup label="日本">
+                <option value="japan_lulu_outlet">🇯🇵 Lulu 日本 Outlet（日幣）</option>
+                <option value="japan_lulu_store">🇯🇵 Lulu 日本門市（日幣）</option>
+                <option value="small_items">🇯🇵 小物／藥妝／生活用品（日幣）</option>
+            </optgroup>
+            <optgroup label="台灣">
+                <option value="linkou">🇹🇼 Lululemon 林口 Outlet（台幣）</option>
+            </optgroup>
+            <optgroup label="澳洲 Shipgo 集運">
+                <option value="au_regular">🇦🇺 澳洲 正價商品（澳幣）</option>
+                <option value="au_wmtm">🇦🇺 澳洲 特價／撿寶區（澳幣）</option>
+            </optgroup>
+        </select>
+    </div>
+
+    <div class="form-group" id="rateGroup">
+        <label id="rateLabel">2. 加幣匯率（預設當日 Visa 匯率，可手動改）</label>
+        <input type="number" id="rate" value="23.2" step="0.001" oninput="onRateManual()">
+        <div id="rateSyncStatus" class="rate-status">正在連網取得今日匯率...</div>
+        <div id="effRate" class="rate-box"></div>
+        <div class="hint">自動抓到的是市場匯率，跟 Visa 匯率通常只差一點點。要精準可到 <a href="https://www.visa.com.tw/support/consumer/travel-support/exchange-rate-calculator.html" target="_blank" rel="noopener">Visa 匯率查詢</a> 查好填進來，系統會自動再加 2% 匯差。</div>
+    </div>
+
+    <div id="weightBlock">
+        <div class="form-row">
+            <div class="form-group" style="flex: 3;">
+                <label>3. 品類</label>
+                <select id="category" onchange="onCategoryChange()">
+                    <option value="top" data-w="0.8" selected>上衣（0.8 磅）</option>
+                    <option value="jacket" data-w="1.5">外套（1.5 磅）</option>
+                    <option value="scuba" data-w="1.7">Scuba 帽T（1.7 磅）</option>
+                    <option value="pants" data-w="0.7">褲子（預估 0.7 磅）</option>
+                    <option value="shorts" data-w="0.4">短褲（預估 0.4 磅）</option>
+                    <option value="bra" data-w="0.3">內衣（預估 0.3 磅）</option>
+                    <option value="bag" data-w="1.0">包包（預估 1.0 磅）</option>
+                    <option value="shoes" data-w="2.5">鞋子（預估 2.5 磅）</option>
+                </select>
+            </div>
+            <div class="form-group" style="flex: 2;">
+                <label>重量（磅/件）</label>
+                <input type="number" id="weight" value="0.8" step="0.1" min="0" oninput="calculate()">
+            </div>
+        </div>
+        <div class="hint" id="weightHint" style="margin:-6px 0 12px;">褲子、短褲、內衣、包包、鞋子是預估值，到貨過秤後直接改重量。</div>
+    </div>
+
+    <div class="form-group" id="discountGroup">
+        <label>3. 現場折扣（Outlet 優惠）</label>
+        <select id="discount" onchange="calculate()">
+            <option value="1">無折扣（不打折）</option>
+            <option value="0.95">95 折</option>
+            <option value="0.9">9 折</option>
+            <option value="0.85">85 折</option>
+            <option value="0.8">8 折</option>
+            <option value="0.75">75 折</option>
+            <option value="0.7">7 折</option>
+            <option value="0.67">67 折</option>
+            <option value="0.6">6 折</option>
+            <option value="0.5">5 折</option>
+        </select>
+    </div>
+
+    <div class="form-row">
+        <div class="form-group" style="flex: 2;">
+            <label id="priceLabel">4. 加幣價（CAD，單件）</label>
+            <input type="number" id="inputPrice" placeholder="輸入單件價格" step="0.01" oninput="calculate()">
+        </div>
+        <div class="form-group" style="flex: 1;">
+            <label>數量</label>
+            <input type="number" id="itemQty" value="1" min="1" oninput="calculate()">
+        </div>
+    </div>
+
+    <div class="form-group" id="markupGroup">
+        <label>5. 建議加價（每件，到台成本 3,000 以內適用）</label>
+        <input type="number" id="markup" value="370" step="10" oninput="onMarkupChange()">
+        <div class="hint">售價 = 到台成本 ＋ 加價，再取最接近的整十元。改了會自動記住。</div>
+    </div>
+
+    <div class="form-group check-box check-yellow" id="shipAloneGroup">
+        <label><input type="checkbox" id="shipAlone" onchange="calculate()"> <span id="shipAloneText">這筆會單獨寄（運費最低以 2 磅計）</span></label>
+    </div>
+
+    <div class="form-group check-box check-blue" id="ausBoxGroup">
+        <label><input type="checkbox" id="ausNeedBox" onchange="calculate()"> 📦 澳洲代運：更換標準紙箱處理費（+NT$ 100）</label>
+    </div>
+
+    <div id="resultBox" class="result" style="display:none;">
+        <div class="step">
+            <span><span class="no">1</span>單件成本</span>
+            <span class="val" id="unitCostText"></span>
+        </div>
+        <div class="formula" id="unitCostFormula"></div>
+        <div class="formula" id="shipFormula"></div>
+
+        <div class="step">
+            <span><span class="no">2</span>到台成本</span>
+            <span class="val" id="landedCostText"></span>
+        </div>
+
+        <div class="step">
+            <span><span class="no">3</span>售價 ✍️</span>
+            <input type="number" id="priceInput" class="editable price" oninput="onPriceManual()">
+        </div>
+        <div class="markup-hint" id="markupHint"></div>
+
+        <div class="step" style="border-bottom:none;">
+            <span><span class="no">4</span>利潤 ✍️</span>
+            <input type="number" id="profitInput" class="editable profit" oninput="onProfitManual()">
+        </div>
+
+        <div id="warnBox"></div>
+
+        <div class="totals">
+            <div class="result-item">總售價（×<span id="qtyText">1</span>）：<span id="totalPrice" style="font-weight:bold; color:var(--primary);"></span></div>
+            <div class="result-item">總利潤：<span id="totalProfit" style="font-weight:bold; color:var(--profit);"></span></div>
+        </div>
+
+        <hr style="border:0; border-top:1px dashed #ddd; margin:15px 0;">
+
+        <!-- 買家資料登錄 -->
+        <div class="form-group">
+            <label>買家 FB 姓名</label>
+            <input type="text" id="fbName" placeholder="例如：王小美">
+        </div>
+        <div class="form-group">
+            <label>商品品名</label>
+            <input type="text" id="itemName" placeholder="例如：Little Jersey Tee">
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>尺寸</label>
+                <input type="text" id="itemSize" placeholder="如: US 4">
+            </div>
+            <div class="form-group">
+                <label>顏色</label>
+                <input type="text" id="itemColor" placeholder="顏色＋色碼">
+            </div>
+        </div>
+        <div class="form-group">
+            <label>實收代購總價格（全款）</label>
+            <input type="number" id="actualPaidInput">
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>國內物流</label>
+                <select id="localLogistics">
+                    <option value="7-11">7-11</option>
+                    <option value="全家">全家</option>
+                    <option value="萊爾富">萊爾富</option>
+                    <option value="郵局">郵局</option>
+                    <option value="面交">面交</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>寄件單號</label>
+                <input type="text" id="trackingNum" placeholder="尚未寄出可留空">
+            </div>
+        </div>
+        <div class="form-group">
+            <label>進度/備註</label>
+            <input type="text" id="orderMemo" placeholder="例如：已下單、缺貨、追加中">
+        </div>
+
+        <button class="btn-sec" onclick="addToOrder()">加入此筆訂單 ↓</button>
+    </div>
+</div>
+
+<!-- 提醒（紅海集運） -->
+<div class="card notes" id="notesCard">
+    <h3>📌 紅海公式沒算進去的費用</h3>
+    <ul>
+        <li>EZWAY 每張運單 NT$3</li>
+        <li>保險：申報值 1 萬以下 2%、3 萬以下 3%、5 萬以下 5%</li>
+        <li>每張運單最低以 2 磅計，小件單獨寄會比公式貴，合併寄送才準</li>
+    </ul>
+    <h3>⚠️ 報價前核對</h3>
+    <ul>
+        <li>官網常忽略網址的 <code>?color=</code> 色碼，只回傳預設顏色，報價前先核對顏色和色碼是否相符</li>
+        <li>美國頁面通常會照色碼顯示，可以用來確認顏色，但價格一定要用<b>加拿大頁面該顏色</b>的加幣價</li>
+        <li>同款不同色特價常不同，不能沿用其他顏色的價格</li>
+        <li>查不到該色的加幣價就先問清楚，不要用猜的</li>
+    </ul>
+</div>
+
+<!-- 區塊二：訂單管理與匯出 -->
+<div class="card" style="max-width: 950px; width: 100%;">
+    <h2>訂單統計與下單管理</h2>
+
+    <div class="result" style="border-left: 5px solid var(--sec); background: #f0f8ff; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+        <div>訂單筆數: <span id="orderCount" style="font-weight:bold;">0</span></div>
+        <div>總代購價格（全款）: <span id="totalPriceSum" style="font-weight:bold; color:var(--sec);">NT$ 0</span></div>
+        <div>預估總利潤: <span id="totalProfitSum" style="font-weight:bold; color:var(--profit);">NT$ 0</span></div>
+    </div>
+
+    <div class="table-container">
+        <table class="order-table">
+            <thead>
+                <tr>
+                    <th>FB姓名</th><th>商品品名</th><th>尺寸</th><th>顏色</th><th>數量</th>
+                    <th>代購價格</th><th>國內物流</th><th>寄件單號</th><th>進度/備註</th>
+                </tr>
+            </thead>
+            <tbody id="orderList"></tbody>
+        </table>
+    </div>
+
+    <button class="btn-success" onclick="exportToCSV()">確認下單並匯出表格</button>
+</div>
+
+<script>
+// ===== 路線設定 =====
+const ROUTES = {
+    // 紅海集運（新公式）
+    CA: { group: 'redsea', currency: 'CAD', name: '加幣', tax: 1.05, perLb: 144 },
+    US: { group: 'redsea', currency: 'USD', name: '美金', tax: 1.00, perLb: 178 },
+    // 日本（舊公式）
+    japan_lulu_outlet: { group: 'japan', currency: 'JPY', name: '日幣', margin: 1.20, ship: 100, title: '日本 Outlet' },
+    japan_lulu_store:  { group: 'japan', currency: 'JPY', name: '日幣', margin: 1.15, ship: 100, title: '日本門市' },
+    small_items:       { group: 'japan', currency: 'JPY', name: '日幣', margin: 1.20, ship: 80,  minAdd: 120, title: '小物／藥妝' },
+    // 台灣（舊公式）
+    linkou: { group: 'tw', currency: 'TWD', name: '台幣' },
+    // 澳洲 Shipgo（舊公式）
+    au_regular: { group: 'au', currency: 'AUD', name: '澳幣', mult: 27.37, title: '澳洲正價' },
+    au_wmtm:    { group: 'au', currency: 'AUD', name: '澳幣', mult: 36.53, title: '澳洲特價' }
+};
+const CARD_FEE = 1.015;      // 刷卡手續費 1.5%
+const MIN_WAYBILL_LB = 2;    // 紅海加拿大／美國每張運單最低 2 磅
+const FX_SPREAD = 1.02;      // 所有幣別：Visa 匯率 + 2% 匯差
+
+// Visa 匯率（未加匯差），連網失敗時的預設值
+let rates = { CAD: 22.75, USD: 31.4, JPY: 0.205, AUD: 23.2, TWD: 1 };
+const fxDigits = c => c === 'JPY' ? 5 : 4;
+// 匯率來源：default = 預設值（沒連上網）、auto = 今日自動抓取、manual = 手動輸入
+let rateSource = { CAD: 'default', USD: 'default', JPY: 'default', AUD: 'default' };
+const SRC_TEXT = { default: '⚠️ 預設值，請手動確認', auto: '今日自動抓取', manual: '手動輸入' };
+const calcFx = c => c === 'TWD' ? 1 : +(rates[c] * FX_SPREAD).toFixed(fxDigits(c));
+let currentCalc = null;
+let orderDatabase = [];
+
+const $ = id => document.getElementById(id);
+const nt = n => 'NT$ ' + Math.round(n).toLocaleString();
+const show = (id, on) => $(id).classList.toggle('hidden', !on);
+const route = () => ROUTES[$('route').value];
+
+// ===== 匯率 =====
+window.onload = function () {
+    try { const m = localStorage.getItem('daigou_markup'); if (m) $('markup').value = m; } catch (e) {}
+    onRouteChange();
+    fetch('https://open.er-api.com/v6/latest/TWD')
+        .then(r => r.json())
+        .then(data => {
+            if (data && data.rates && data.rates.CAD) {
+                ['CAD', 'USD', 'JPY', 'AUD'].forEach(c => {
+                    rates[c] = +(1 / data.rates[c]).toFixed(c === 'JPY' ? 4 : 3);
+                    rateSource[c] = 'auto';
+                });
+                $('rateSyncStatus').innerText = '✓ 已取得今日匯率';
+                if (route().currency !== 'TWD') $('rate').value = rates[route().currency];
+                calculate();
+            }
+        })
+        .catch(() => {
+            $('rateSyncStatus').innerText = '⚠️ 連網失敗，使用預設匯率，請手動確認';
+            $('rateSyncStatus').style.color = '#ff4757';
+        });
+};
+
+function onRateManual() {
+    const r = parseFloat($('rate').value);
+    if (!isNaN(r) && r > 0) { rates[route().currency] = r; rateSource[route().currency] = 'manual'; }
+    calculate();
+}
+
+function onRouteChange() {
+    const r = route();
+    const g = r.group;
+
+    show('rateGroup', g !== 'tw');
+    show('weightBlock', g === 'redsea' || g === 'au');
+    show('weightHint', g === 'redsea');
+    show('discountGroup', g === 'japan' || g === 'tw');
+    show('shipAloneGroup', g === 'redsea');
+    show('markupGroup', g === 'redsea');
+    show('ausBoxGroup', g === 'au');
+    show('notesCard', g === 'redsea');
+
+    $('rateLabel').innerText = '2. ' + r.name + ' Visa 匯率（填原始匯率，不含匯差）';
+    if (g === 'redsea') {
+        $('priceLabel').innerText = '4. ' + r.name + '價（' + r.currency + '，單件）';
+    } else if (g === 'tw') {
+        $('priceLabel').innerText = '4. 商品單件原價（TWD）';
+    } else {
+        $('priceLabel').innerText = g === 'japan' ? '4. 商品單件原價（JPY，標籤原價）' : '4. 澳洲商品單件標價（AUD）';
+    }
+    $('rate').value = rates[r.currency];
+    calculate();
+}
+
+function onCategoryChange() {
+    $('weight').value = $('category').selectedOptions[0].dataset.w;
+    calculate();
+}
+
+// ===== 紅海建議售價：成本 + 加價區間，取區間內最高的「x90」好記尾數 =====
+function niceInRange(lo, hi) {
+    const p = Math.floor((hi + 10) / 100) * 100 - 10;
+    return (p >= lo) ? p : Math.ceil(lo / 10) * 10;
+}
+
+function getMarkup() {
+    const m = parseFloat($('markup').value);
+    return isNaN(m) ? 370 : m;
+}
+
+function onMarkupChange() {
+    try { localStorage.setItem('daigou_markup', $('markup').value); } catch (e) {}
+    calculate();
+}
+
+function suggestRedsea(landed, isBra) {
+    let lo, hi, rule, needConfirm = false;
+    if (isBra) {
+        lo = landed + 200; hi = landed + 300; rule = '內衣：加 200～300';
+    } else if (landed <= 3000) {
+        const m = getMarkup();
+        const price = Math.round((landed + m) / 10) * 10;
+        return { price, rule: '成本 3,000 以內：加 ' + m + '，取整十元', needConfirm: false };
+    } else {
+        lo = landed * 1.10; hi = landed * 1.15; rule = '成本超過 3,000：暫按加 10～15%'; needConfirm = true;
+    }
+    return { price: niceInRange(lo, hi), rule: rule + '（區間 ' + Math.round(lo).toLocaleString() + '～' + Math.round(hi).toLocaleString() + '）', needConfirm };
+}
+
+const ceil10 = n => Math.ceil(n / 10) * 10;
+
+// ===== 主計算 =====
+function calculate() {
+    const r = route();
+    const g = r.group;
+    const visa = g === 'tw' ? 1 : parseFloat($('rate').value);
+    const fx = calcFx(r.currency);
+    if (g !== 'tw') {
+        const src = rateSource[r.currency];
+        $('effRate').innerHTML = '計算用匯率 <b>' + fx + '</b>（Visa ' + visa + ' × 1.02）・<span class="' + src + '">' + SRC_TEXT[src] + '</span>';
+    }
+    const p = parseFloat($('inputPrice').value);
+    const weight = parseFloat($('weight').value) || 0;
+    const disc = parseFloat($('discount').value);
+    const qty = Math.max(1, parseInt($('itemQty').value) || 1);
+
+    if (isNaN(p) || p <= 0 || isNaN(visa) || visa <= 0) {
+        $('resultBox').style.display = 'none';
+        currentCalc = null;
+        return;
+    }
+
+    let unitCost, ship, price, rule, costFormula, shipFormula = '', warns = '';
+    const discStr = disc < 1 ? ' × ' + Math.round(disc * 100) + '折' : '';
+
+    if (g === 'redsea') {
+        unitCost = Math.round(p * r.tax * fx * CARD_FEE);
+        const totalLb = weight * qty;
+        const alone = $('shipAlone').checked;
+        const perQty = qty > 1 ? ' ÷ ' + qty + ' 件' : '';
+        const underMin = totalLb < MIN_WAYBILL_LB;
+        if (alone && underMin) {
+            ship = Math.round(MIN_WAYBILL_LB * r.perLb / qty);
+            shipFormula = '運費：單獨寄最低 2 磅 × ' + r.perLb + perQty + ' = ' + ship + '（每件）';
+        } else {
+            ship = Math.round(weight * r.perLb);
+            shipFormula = '運費：' + weight + ' 磅 × ' + r.perLb + ' = ' + ship;
+        }
+        if (!alone && underMin) warns += '<div class="warn">📦 這筆共 ' + (+totalLb.toFixed(2)) + ' 磅，未滿 2 磅。要跟其他訂單合併寄，運費才會跟公式一樣；單獨寄請勾選上面的「單獨寄」。</div>';
+        costFormula = p + (r.tax !== 1 ? ' × 1.05' : '') + ' × ' + fx + '（計算用匯率）× 1.015 = ' + unitCost.toLocaleString();
+        const s = suggestRedsea(unitCost + ship, $('category').value === 'bra');
+        price = s.price; rule = s.rule;
+        if (s.needConfirm) warns += '<div class="warn red">⚠️ 到台成本超過 3,000，售價是暫估（加 10～15%），請確認後再報價。</div>';
+
+    } else if (g === 'japan') {
+        const raw = p * disc * fx * CARD_FEE;
+        unitCost = Math.round(raw);
+        ship = r.ship;
+        costFormula = p + discStr + ' × ' + fx + '（計算用匯率）× 1.015 = ' + unitCost.toLocaleString();
+        shipFormula = '國際運費：' + ship;
+        let sp = raw * r.margin + ship;
+        if (r.minAdd) sp = Math.max(sp, raw + r.minAdd);
+        price = ceil10(sp);
+        rule = r.title + '：成本 × ' + r.margin + ' ＋ 運費 ' + ship + (r.minAdd ? '，至少加 ' + r.minAdd : '');
+
+    } else if (g === 'tw') {
+        const raw = p * disc;
+        unitCost = Math.round(raw);
+        ship = 0;
+        costFormula = p + discStr + ' = ' + unitCost.toLocaleString();
+        price = ceil10(Math.max(raw * 1.12, raw + 150));
+        rule = '林口：成本 × 1.12，至少加 150';
+
+    } else { // 澳洲
+        const raw = p * fx * CARD_FEE;
+        unitCost = Math.round(raw);
+        const lb = Math.max(weight, MIN_WAYBILL_LB);
+        ship = Math.round(lb * 135);
+        shipFormula = 'Shipgo 運費：' + (weight < MIN_WAYBILL_LB ? '最低 2 磅' : weight + ' 磅') + ' × 135 = ' + ship;
+        if ($('ausNeedBox').checked) { ship += 100; shipFormula += ' ＋ 換紙箱 100'; }
+        costFormula = p + ' × ' + fx + '（計算用匯率）× 1.015 = ' + unitCost.toLocaleString();
+        let sp = p * r.mult;
+        if (sp - (unitCost + ship) < 250) sp = unitCost + ship + 250;
+        price = ceil10(sp);
+        rule = r.title + '：澳幣價 × ' + r.mult + '，利潤至少 250';
+    }
+
+    const landed = unitCost + ship;
+    currentCalc = { landed, qty };
+
+    $('unitCostFormula').innerText = costFormula;
+    $('shipFormula').innerText = shipFormula;
+    show('shipFormula', !!shipFormula);
+    $('unitCostText').innerText = nt(unitCost);
+    $('landedCostText').innerText = nt(landed);
+    $('priceInput').value = price;
+    $('profitInput').value = price - landed;
+    $('markupHint').innerText = rule;
+    $('warnBox').innerHTML = warns;
+
+    $('resultBox').style.display = 'block';
+    renderTotals();
+}
+
+// ===== 手動改售價／利潤 =====
+function onPriceManual() {
+    if (!currentCalc) return;
+    $('profitInput').value = Math.round((parseFloat($('priceInput').value) || 0) - currentCalc.landed);
+    renderTotals();
+}
+
+function onProfitManual() {
+    if (!currentCalc) return;
+    $('priceInput').value = Math.round(currentCalc.landed + (parseFloat($('profitInput').value) || 0));
+    renderTotals();
+}
+
+function renderTotals() {
+    if (!currentCalc) return;
+    const price = parseFloat($('priceInput').value) || 0;
+    const total = Math.round(price * currentCalc.qty);
+    $('qtyText').innerText = currentCalc.qty;
+    $('totalPrice').innerText = nt(total);
+    $('totalProfit').innerText = nt((price - currentCalc.landed) * currentCalc.qty);
+    $('actualPaidInput').value = total;
+}
+
+// ===== 官網網址解析 =====
+const CAT_NAME = { top: '上衣', jacket: '外套', scuba: 'Scuba 帽T', pants: '褲子', shorts: '短褲', bra: '內衣', bag: '包包', shoes: '鞋子' };
+
+function guessCategory(slug) {
+    const t = '-' + slug.toLowerCase() + '-';
+    const has = re => re.test(t);
+    if (has(/-bra-|bra-|-bralette/)) return 'bra';
+    if (has(/scuba/) && has(/hoodie|half-zip|crew|pullover|zip/)) return 'scuba';
+    if (has(/jacket|coat|parka|vest|puffer|-define-|anorak|windbreaker/)) return 'jacket';
+    if (has(/bag|tote|backpack|pouch|crossbody|duffel|duffle|sling/)) return 'bag';
+    if (has(/shoe|sneaker|trainer|-slide|clog|blissfeel|chargefeel|beyondfeel|cityverse/)) return 'shoes';
+    if (has(/short-sleeve|-ss-/)) return 'top';
+    if (has(/-short|shorts/)) return 'shorts';
+    if (has(/pant|legging|jogger|trouser|-tight|align-high-rise|flare|sweatpant/)) return 'pants';
+    if (has(/tee|tank|top|shirt|sweater|hoodie|pullover|crew|long-sleeve|half-zip|polo|cardigan/)) return 'top';
+    return null;
+}
+
+function titleCase(slug) {
+    return decodeURIComponent(slug).split(/[-_]+/).filter(Boolean)
+        .map(w => /^(ss|ls|hr|sl)$/i.test(w) ? w.toUpperCase() : w.charAt(0).toUpperCase() + w.slice(1))
+        .join(' ');
+}
+
+function parseProductUrl() {
+    const raw = $('productUrl').value.trim();
+    const info = $('urlInfo');
+    if (!raw) { info.innerHTML = ''; return; }
+
+    let u;
+    try { u = new URL(raw.startsWith('http') ? raw : 'https://' + raw); }
+    catch (e) { info.innerHTML = '<span class="bad">✗ 看不懂這個網址，請確認有完整貼上</span>'; return; }
+
+    const host = u.hostname.toLowerCase();
+    const path = u.pathname;
+    if (!host.includes('lululemon')) { info.innerHTML = '<span class="bad">✗ 這不是 lululemon 官網網址</span>'; return; }
+
+    // 判斷官網
+    let routeKey = null, site = '';
+    if (host.includes('lululemon.com.au') || /\/en-au\b/.test(path)) {
+        routeKey = $('route').value.startsWith('au_') ? $('route').value : 'au_regular'; site = '澳洲官網';
+    } else if (host.includes('lululemon.co.jp') || /\/ja-jp\b/.test(path)) {
+        routeKey = $('route').value.startsWith('japan_') ? $('route').value : 'japan_lulu_store'; site = '日本官網';
+    } else if (/\/en-ca\b|\/fr-ca\b/.test(path) || host.includes('lululemon.ca')) {
+        routeKey = 'CA'; site = '加拿大官網';
+    } else if (host === 'shop.lululemon.com' || host === 'www.lululemon.com' || /\/en-us\b/.test(path)) {
+        routeKey = 'US'; site = '美國官網';
+    }
+    if (!routeKey) { info.innerHTML = '<span class="bad">✗ 認不出是哪一國的官網，請手動選路線</span>'; return; }
+
+    // 品名：/p/ 後面的那段
+    const segs = path.split('/').filter(Boolean);
+    const pi = segs.indexOf('p');
+    let nameSlug = '';
+    if (pi >= 0) {
+        const rest = segs.slice(pi + 1);
+        const ui = rest.indexOf('_');
+        nameSlug = ui > 0 ? rest[ui - 1] : (rest[0] || '');
+    }
+    const name = nameSlug ? titleCase(nameSlug.replace(/\.html$/, '')) : '';
+
+    // 色碼、尺寸
+    let color = u.searchParams.get('color') || '';
+    if (!color) for (const [k, v] of u.searchParams) if (/_color$/i.test(k)) { color = v; break; }
+    const size = u.searchParams.get('sz') || u.searchParams.get('size') || '';
+
+    // 帶入
+    $('route').value = routeKey;
+    let cat = null;
+    if (nameSlug) {
+        cat = guessCategory(nameSlug);
+        if (cat && ROUTES[routeKey].group !== 'japan') {
+            $('category').value = cat;
+            $('weight').value = $('category').selectedOptions[0].dataset.w;
+        }
+    }
+    if (name) $('itemName').value = name;
+    $('itemColor').value = color ? '色碼 ' + color : '';
+    $('itemSize').value = size;
+    $('inputPrice').value = '';
+    onRouteChange();
+
+    const cur = ROUTES[routeKey].name;
+    info.innerHTML =
+        '<span class="ok">✓ ' + site + '</span>・' + (name ? esc(name) : '（品名請手動填）') +
+        (color ? '・色碼 ' + esc(color) : '・<span class="bad">網址沒有色碼</span>') +
+        (cat && ROUTES[routeKey].group !== 'japan' ? '・品類判斷：' + CAT_NAME[cat] + '（請確認）' : '') +
+        '　<a href="' + esc(u.href) + '" target="_blank" rel="noopener">打開商品頁</a><br>' +
+        '<span class="remind">👉 請在官網確認' + (color ? '色碼 ' + esc(color) + ' 這個顏色' : '你要的顏色') + '的' + cur + '價，再填到第 4 步。同款不同色價格可能不同。</span>';
+    $('inputPrice').focus();
+}
+
+// ===== 訂單 =====
+function esc(s) {
+    return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function addToOrder() {
+    const fbName = $('fbName').value.trim();
+    if (!fbName) { alert('請輸入 FB 姓名'); return; }
+    if (!currentCalc) { alert('請先輸入價格完成報價'); return; }
+
+    const actualPaid = parseFloat($('actualPaidInput').value) || 0;
+    orderDatabase.push({
+        fbName,
+        itemName: $('itemName').value.trim() || '未填寫',
+        itemSize: $('itemSize').value.trim() || '-',
+        itemColor: $('itemColor').value.trim() || '-',
+        itemQty: currentCalc.qty,
+        actualPaid,
+        profit: Math.round(actualPaid - currentCalc.landed * currentCalc.qty),
+        localLogistics: $('localLogistics').value,
+        trackingNum: $('trackingNum').value.trim() || '-',
+        orderMemo: $('orderMemo').value.trim() || '已登記'
+    });
+
+    updateOrderTable();
+
+    ['fbName', 'itemName', 'itemSize', 'itemColor', 'trackingNum', 'orderMemo', 'inputPrice', 'productUrl'].forEach(id => $(id).value = '');
+    $('urlInfo').innerHTML = '';
+    $('itemQty').value = '1';
+    $('shipAlone').checked = false;
+    $('ausNeedBox').checked = false;
+    $('resultBox').style.display = 'none';
+    currentCalc = null;
+}
+
+function updateOrderTable() {
+    const tbody = $('orderList');
+    tbody.innerHTML = '';
+    let tPrice = 0, tProfit = 0;
+
+    orderDatabase.forEach(item => {
+        tPrice += item.actualPaid; tProfit += item.profit;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td><b>${esc(item.fbName)}</b></td>
+            <td>${esc(item.itemName)}</td>
+            <td>${esc(item.itemSize)}</td>
+            <td>${esc(item.itemColor)}</td>
+            <td>${item.itemQty}</td>
+            <td>NT$ ${item.actualPaid.toLocaleString()}</td>
+            <td>${esc(item.localLogistics)}</td>
+            <td><code>${esc(item.trackingNum)}</code></td>
+            <td style="color:#1e90ff;">${esc(item.orderMemo)}</td>`;
+        tbody.appendChild(tr);
+    });
+
+    $('orderCount').innerText = orderDatabase.length;
+    $('totalPriceSum').innerText = nt(tPrice);
+    $('totalProfitSum').innerText = nt(tProfit);
+}
+
+function exportToCSV() {
+    if (orderDatabase.length === 0) { alert('目前沒有任何訂單可以匯出'); return; }
+    const q = s => '"' + String(s).replace(/"/g, '""') + '"';
+    let csv = "﻿FB姓名,商品品名,尺寸,顏色,數量,代購價格,國內物流,寄件單號,進度/備註\n";
+    orderDatabase.forEach(i => {
+        csv += [q(i.fbName), q(i.itemName), q(i.itemSize), q(i.itemColor), i.itemQty, i.actualPaid, q(i.localLogistics), q(i.trackingNum), q(i.orderMemo)].join(',') + "\n";
+    });
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = '代購追蹤總表資料.csv';
+    document.body.appendChild(link); link.click(); document.body.removeChild(link);
+}
+</script>
+
+</body>
+</html>
