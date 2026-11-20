@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>代購報價與訂單系統 v11.7</title>
+    <title>代購報價與訂單系統 v11.8</title>
     <style>
         :root { --primary: #ff4757; --bg: #f1f2f6; --accent: #2ed573; --profit: #ffa502; --sec: #1e90ff; }
         body { font-family: -apple-system, "PingFang TC", "Microsoft JhengHei", sans-serif; background: var(--bg); display: flex; flex-direction: column; align-items: center; padding: 20px; margin: 0; }
@@ -63,7 +63,7 @@
 
 <!-- 區塊一：報價計算 -->
 <div class="card">
-    <h2>代購報價系統 v11.7</h2>
+    <h2>代購報價系統 v11.8</h2>
 
     <div class="form-group url-box">
         <label>0. 貼上官網商品網址（選填，自動帶入路線、品名、色碼）</label>
@@ -75,27 +75,28 @@
         <label>1. 貨源／集運路線</label>
         <select id="route" onchange="onRouteChange()">
             <optgroup label="紅海集運">
-                <option value="CA" selected>🇨🇦 加拿大官網（紅海 CAA 線・每磅 144）</option>
-                <option value="US">🇺🇸 美國官網（紅海奧勒岡 BOM 倉 BTK 線・每磅 178）</option>
+                <option value="CA" selected>🇨🇦 加拿大官網（紅海 CAA）</option>
+                <option value="US">🇺🇸 美國官網（紅海 BTK）</option>
             </optgroup>
             <optgroup label="日本">
-                <option value="japan_lulu_outlet">🇯🇵 Lulu 日本 Outlet（日幣）</option>
-                <option value="japan_lulu_store">🇯🇵 Lulu 日本門市（日幣）</option>
-                <option value="small_items">🇯🇵 小物／藥妝／生活用品（日幣）</option>
+                <option value="japan_lulu_outlet">🇯🇵 日本 Outlet</option>
+                <option value="japan_lulu_store">🇯🇵 日本門市</option>
+                <option value="small_items">🇯🇵 日本小物／藥妝</option>
             </optgroup>
             <optgroup label="台灣">
-                <option value="linkou">🇹🇼 Lululemon 林口 Outlet（台幣）</option>
+                <option value="linkou">🇹🇼 林口 Outlet</option>
             </optgroup>
             <optgroup label="澳洲 Shipgo 集運">
-                <option value="au_regular">🇦🇺 澳洲 正價商品（澳幣）</option>
-                <option value="au_wmtm">🇦🇺 澳洲 特價／撿寶區（澳幣）</option>
+                <option value="au_regular">🇦🇺 澳洲正價</option>
+                <option value="au_wmtm">🇦🇺 澳洲特價／撿寶</option>
             </optgroup>
         </select>
+        <div class="hint" id="routeInfo"></div>
     </div>
 
     <div class="form-group" id="rateGroup">
         <label id="rateLabel">2. 加幣匯率（預設當日 Visa 匯率，可手動改）</label>
-        <input type="number" id="rate" value="23.2" step="0.001" oninput="onRateManual()">
+        <input type="number" inputmode="decimal" id="rate" value="23.2" step="0.001" oninput="onRateManual()">
         <div id="rateSyncStatus" class="rate-status">正在連網取得今日匯率...</div>
         <div id="effRate" class="rate-box"></div>
         <div class="hint">自動抓到的是市場匯率，跟 Visa 匯率通常只差一點點。要精準可到 <a href="https://www.visa.com.tw/support/consumer/travel-support/exchange-rate-calculator.html" target="_blank" rel="noopener">Visa 匯率查詢</a> 查好填進來，系統會自動再加 2% 匯差。</div>
@@ -118,7 +119,7 @@
             </div>
             <div class="form-group" style="flex: 2;">
                 <label>重量（磅/件）</label>
-                <input type="number" id="weight" value="0.8" step="0.1" min="0" oninput="calculate()">
+                <input type="number" inputmode="decimal" id="weight" value="0.8" step="0.1" min="0" oninput="calculate()">
             </div>
         </div>
         <div class="hint" id="weightHint" style="margin:-6px 0 12px;">褲子、短褲、內衣、包包、鞋子是預估值，到貨過秤後直接改重量。</div>
@@ -143,17 +144,17 @@
     <div class="form-row">
         <div class="form-group" style="flex: 2;">
             <label id="priceLabel">4. 加幣價（CAD，單件）</label>
-            <input type="number" id="inputPrice" placeholder="輸入單件價格" step="0.01" oninput="calculate()">
+            <input type="number" inputmode="decimal" id="inputPrice" placeholder="輸入單件價格" step="0.01" oninput="calculate()">
         </div>
         <div class="form-group" style="flex: 1;">
             <label>數量</label>
-            <input type="number" id="itemQty" value="1" min="1" oninput="calculate()">
+            <input type="number" inputmode="numeric" id="itemQty" value="1" min="1" oninput="calculate()">
         </div>
     </div>
 
     <div class="form-group" id="markupGroup">
         <label>5. 建議加價（每件，到台成本 3,000 以內適用）</label>
-        <input type="number" id="markup" value="370" step="10" oninput="onMarkupChange()">
+        <input type="number" inputmode="decimal" id="markup" value="370" step="10" oninput="onMarkupChange()">
         <div class="hint">售價 = 到台成本 ＋ 加價，再取最接近的整十元。改了會自動記住。</div>
     </div>
 
@@ -180,13 +181,13 @@
 
         <div class="step">
             <span><span class="no">3</span>售價 ✍️</span>
-            <input type="number" id="priceInput" class="editable price" oninput="onPriceManual()">
+            <input type="number" inputmode="decimal" id="priceInput" class="editable price" oninput="onPriceManual()">
         </div>
         <div class="markup-hint" id="markupHint"></div>
 
         <div class="step" style="border-bottom:none;">
             <span><span class="no">4</span>利潤 ✍️</span>
-            <input type="number" id="profitInput" class="editable profit" oninput="onProfitManual()">
+            <input type="number" inputmode="decimal" id="profitInput" class="editable profit" oninput="onProfitManual()">
         </div>
 
         <div id="warnBox"></div>
@@ -219,7 +220,7 @@
         </div>
         <div class="form-group">
             <label>實收代購總價格（全款）</label>
-            <input type="number" id="actualPaidInput">
+            <input type="number" inputmode="decimal" id="actualPaidInput">
         </div>
         <div class="form-row">
             <div class="form-group">
@@ -292,17 +293,17 @@
 // ===== 路線設定 =====
 const ROUTES = {
     // 紅海集運（新公式）
-    CA: { group: 'redsea', currency: 'CAD', name: '加幣', tax: 1.05, perLb: 144 },
-    US: { group: 'redsea', currency: 'USD', name: '美金', tax: 1.00, perLb: 178 },
+    CA: { group: 'redsea', currency: 'CAD', name: '加幣', tax: 1.05, perLb: 144, info: '加幣・州稅 5%・紅海 CAA 線每磅 NT$144' },
+    US: { group: 'redsea', currency: 'USD', name: '美金', tax: 1.00, perLb: 178, info: '美金・免稅・紅海奧勒岡 BOM 倉 BTK 線每磅 NT$178' },
     // 日本（舊公式）
-    japan_lulu_outlet: { group: 'japan', currency: 'JPY', name: '日幣', margin: 1.20, ship: 100, title: '日本 Outlet' },
-    japan_lulu_store:  { group: 'japan', currency: 'JPY', name: '日幣', margin: 1.15, ship: 100, title: '日本門市' },
-    small_items:       { group: 'japan', currency: 'JPY', name: '日幣', margin: 1.20, ship: 80,  minAdd: 120, title: '小物／藥妝' },
+    japan_lulu_outlet: { group: 'japan', currency: 'JPY', name: '日幣', margin: 1.20, ship: 100, title: '日本 Outlet', info: '日幣・成本 × 1.20 ＋ 運費 100' },
+    japan_lulu_store:  { group: 'japan', currency: 'JPY', name: '日幣', margin: 1.15, ship: 100, title: '日本門市', info: '日幣・成本 × 1.15 ＋ 運費 100' },
+    small_items:       { group: 'japan', currency: 'JPY', name: '日幣', margin: 1.20, ship: 80,  minAdd: 120, title: '小物／藥妝', info: '日幣・成本 × 1.20 ＋ 運費 80，至少加 120' },
     // 台灣（舊公式）
-    linkou: { group: 'tw', currency: 'TWD', name: '台幣' },
+    linkou: { group: 'tw', currency: 'TWD', name: '台幣', info: '台幣・成本 × 1.12，至少加 150' },
     // 澳洲 Shipgo（舊公式）
-    au_regular: { group: 'au', currency: 'AUD', name: '澳幣', mult: 27.37, title: '澳洲正價' },
-    au_wmtm:    { group: 'au', currency: 'AUD', name: '澳幣', mult: 36.53, title: '澳洲特價' }
+    au_regular: { group: 'au', currency: 'AUD', name: '澳幣', mult: 27.37, title: '澳洲正價', info: '澳幣・Shipgo 集運・澳幣價 × 27.37' },
+    au_wmtm:    { group: 'au', currency: 'AUD', name: '澳幣', mult: 36.53, title: '澳洲特價', info: '澳幣・Shipgo 集運・澳幣價 × 36.53' }
 };
 const CARD_FEE = 1.015;      // 刷卡手續費 1.5%
 const MIN_WAYBILL_LB = 2;    // 紅海加拿大／美國每張運單最低 2 磅
@@ -365,6 +366,7 @@ function onRouteChange() {
     show('ausBoxGroup', g === 'au');
     show('notesCard', g === 'redsea');
 
+    $('routeInfo').innerText = r.info;
     $('rateLabel').innerText = '2. ' + r.name + ' Visa 匯率（填原始匯率，不含匯差）';
     if (g === 'redsea') {
         $('priceLabel').innerText = '4. ' + r.name + '價（' + r.currency + '，單件）';
