@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>代購報價與訂單系統 v11.8</title>
+    <title>代購報價與訂單系統 v11.9</title>
     <style>
         :root { --primary: #ff4757; --bg: #f1f2f6; --accent: #2ed573; --profit: #ffa502; --sec: #1e90ff; }
         body { font-family: -apple-system, "PingFang TC", "Microsoft JhengHei", sans-serif; background: var(--bg); display: flex; flex-direction: column; align-items: center; padding: 20px; margin: 0; }
@@ -63,7 +63,7 @@
 
 <!-- 區塊一：報價計算 -->
 <div class="card">
-    <h2>代購報價系統 v11.8</h2>
+    <h2>代購報價系統 v11.9</h2>
 
     <div class="form-group url-box">
         <label>0. 貼上官網商品網址（選填，自動帶入路線、品名、色碼）</label>
@@ -153,9 +153,9 @@
     </div>
 
     <div class="form-group" id="markupGroup">
-        <label>5. 建議加價（每件，到台成本 3,000 以內適用）</label>
+        <label>5. 建議加價（每件）</label>
         <input type="number" inputmode="decimal" id="markup" value="370" step="10" oninput="onMarkupChange()">
-        <div class="hint">售價 = 到台成本 ＋ 加價，再取最接近的整十元。改了會自動記住。</div>
+        <div class="hint">售價 = 到台成本 ＋ 加價，取最接近的整十元。紅海線：到台成本 3,000 以內適用；日本 Lulu：全部適用。改了會自動記住。</div>
     </div>
 
     <div class="form-group check-box check-yellow" id="shipAloneGroup">
@@ -296,8 +296,8 @@ const ROUTES = {
     CA: { group: 'redsea', currency: 'CAD', name: '加幣', tax: 1.05, perLb: 144, info: '加幣・州稅 5%・紅海 CAA 線每磅 NT$144' },
     US: { group: 'redsea', currency: 'USD', name: '美金', tax: 1.00, perLb: 178, info: '美金・免稅・紅海奧勒岡 BOM 倉 BTK 線每磅 NT$178' },
     // 日本（舊公式）
-    japan_lulu_outlet: { group: 'japan', currency: 'JPY', name: '日幣', margin: 1.20, ship: 100, title: '日本 Outlet', info: '日幣・成本 × 1.20 ＋ 運費 100' },
-    japan_lulu_store:  { group: 'japan', currency: 'JPY', name: '日幣', margin: 1.15, ship: 100, title: '日本門市', info: '日幣・成本 × 1.15 ＋ 運費 100' },
+    japan_lulu_outlet: { group: 'japan', currency: 'JPY', name: '日幣', useMarkup: true, ship: 100, title: '日本 Outlet', info: '日幣・到台成本（含運費 100）＋ 建議加價' },
+    japan_lulu_store:  { group: 'japan', currency: 'JPY', name: '日幣', useMarkup: true, ship: 100, title: '日本門市／官網', info: '日幣・到台成本（含運費 100）＋ 建議加價' },
     small_items:       { group: 'japan', currency: 'JPY', name: '日幣', margin: 1.20, ship: 80,  minAdd: 120, title: '小物／藥妝', info: '日幣・成本 × 1.20 ＋ 運費 80，至少加 120' },
     // 台灣（舊公式）
     linkou: { group: 'tw', currency: 'TWD', name: '台幣', info: '台幣・成本 × 1.12，至少加 150' },
@@ -362,7 +362,7 @@ function onRouteChange() {
     show('weightHint', g === 'redsea');
     show('discountGroup', g === 'japan' || g === 'tw');
     show('shipAloneGroup', g === 'redsea');
-    show('markupGroup', g === 'redsea');
+    show('markupGroup', g === 'redsea' || !!r.useMarkup);
     show('ausBoxGroup', g === 'au');
     show('notesCard', g === 'redsea');
 
@@ -465,10 +465,16 @@ function calculate() {
         ship = r.ship;
         costFormula = p + discStr + ' × ' + fx + '（計算用匯率）× 1.015 = ' + unitCost.toLocaleString();
         shipFormula = '國際運費：' + ship;
-        let sp = raw * r.margin + ship;
-        if (r.minAdd) sp = Math.max(sp, raw + r.minAdd);
-        price = ceil10(sp);
-        rule = r.title + '：成本 × ' + r.margin + ' ＋ 運費 ' + ship + (r.minAdd ? '，至少加 ' + r.minAdd : '');
+        if (r.useMarkup) {
+            const m = getMarkup();
+            price = Math.round((unitCost + ship + m) / 10) * 10;
+            rule = r.title + '：到台成本 ＋ ' + m + '，取整十元';
+        } else {
+            let sp = raw * r.margin + ship;
+            if (r.minAdd) sp = Math.max(sp, raw + r.minAdd);
+            price = ceil10(sp);
+            rule = r.title + '：成本 × ' + r.margin + ' ＋ 運費 ' + ship + (r.minAdd ? '，至少加 ' + r.minAdd : '');
+        }
 
     } else if (g === 'tw') {
         const raw = p * disc;
