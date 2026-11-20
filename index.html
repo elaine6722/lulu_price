@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>代購報價與訂單系統 v11.9</title>
+    <title>代購報價與訂單系統 v11.10</title>
     <style>
         :root { --primary: #ff4757; --bg: #f1f2f6; --accent: #2ed573; --profit: #ffa502; --sec: #1e90ff; }
         body { font-family: -apple-system, "PingFang TC", "Microsoft JhengHei", sans-serif; background: var(--bg); display: flex; flex-direction: column; align-items: center; padding: 20px; margin: 0; }
@@ -63,7 +63,7 @@
 
 <!-- 區塊一：報價計算 -->
 <div class="card">
-    <h2>代購報價系統 v11.9</h2>
+    <h2>代購報價系統 v11.10</h2>
 
     <div class="form-group url-box">
         <label>0. 貼上官網商品網址（選填，自動帶入路線、品名、色碼）</label>
@@ -153,9 +153,9 @@
     </div>
 
     <div class="form-group" id="markupGroup">
-        <label>5. 建議加價（每件）</label>
+        <label id="markupLabel">5. 建議加價（每件）</label>
         <input type="number" inputmode="decimal" id="markup" value="370" step="10" oninput="onMarkupChange()">
-        <div class="hint">售價 = 到台成本 ＋ 加價，取最接近的整十元。紅海線：到台成本 3,000 以內適用；日本 Lulu：全部適用。改了會自動記住。</div>
+        <div class="hint" id="markupNote"></div>
     </div>
 
     <div class="form-group check-box check-yellow" id="shipAloneGroup">
@@ -326,7 +326,10 @@ const route = () => ROUTES[$('route').value];
 
 // ===== 匯率 =====
 window.onload = function () {
-    try { const m = localStorage.getItem('daigou_markup'); if (m) $('markup').value = m; } catch (e) {}
+    try {
+        const a = localStorage.getItem('daigou_markup'); if (a) markups.redsea = parseFloat(a) || markups.redsea;
+        const b = localStorage.getItem('daigou_markup_japan'); if (b) markups.japan = parseFloat(b) || markups.japan;
+    } catch (e) {}
     onRouteChange();
     fetch('https://open.er-api.com/v6/latest/TWD')
         .then(r => r.json())
@@ -363,6 +366,14 @@ function onRouteChange() {
     show('discountGroup', g === 'japan' || g === 'tw');
     show('shipAloneGroup', g === 'redsea');
     show('markupGroup', g === 'redsea' || !!r.useMarkup);
+    if (g === 'redsea' || r.useMarkup) {
+        const k = markupKey();
+        $('markup').value = markups[k];
+        $('markupLabel').innerText = '5. 建議加價（每件・' + (k === 'japan' ? '日本 Lulu' : '紅海線') + '）';
+        $('markupNote').innerText = k === 'japan'
+            ? '售價 = 到台成本 ＋ 加價，取最接近的整十元。日本 Outlet、門市／官網共用，跟紅海線分開設定。改了會自動記住。'
+            : '售價 = 到台成本 ＋ 加價，取最接近的整十元。到台成本 3,000 以內適用，加拿大／美國共用。改了會自動記住。';
+    }
     show('ausBoxGroup', g === 'au');
     show('notesCard', g === 'redsea');
 
@@ -390,13 +401,20 @@ function niceInRange(lo, hi) {
     return (p >= lo) ? p : Math.ceil(lo / 10) * 10;
 }
 
+// 建議加價：紅海線、日本 Lulu 分開設定
+let markups = { redsea: 370, japan: 420 };
+const markupKey = () => route().group === 'japan' ? 'japan' : 'redsea';
+
 function getMarkup() {
     const m = parseFloat($('markup').value);
-    return isNaN(m) ? 370 : m;
+    return isNaN(m) ? markups[markupKey()] : m;
 }
 
 function onMarkupChange() {
-    try { localStorage.setItem('daigou_markup', $('markup').value); } catch (e) {}
+    const k = markupKey();
+    const m = parseFloat($('markup').value);
+    if (!isNaN(m)) markups[k] = m;
+    try { localStorage.setItem(k === 'japan' ? 'daigou_markup_japan' : 'daigou_markup', $('markup').value); } catch (e) {}
     calculate();
 }
 
