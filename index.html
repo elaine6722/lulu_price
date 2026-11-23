@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>代購報價與訂單系統 v11.10</title>
+    <title>代購報價與訂單系統 v11.11</title>
     <style>
         :root { --primary: #ff4757; --bg: #f1f2f6; --accent: #2ed573; --profit: #ffa502; --sec: #1e90ff; }
         body { font-family: -apple-system, "PingFang TC", "Microsoft JhengHei", sans-serif; background: var(--bg); display: flex; flex-direction: column; align-items: center; padding: 20px; margin: 0; }
@@ -63,7 +63,7 @@
 
 <!-- 區塊一：報價計算 -->
 <div class="card">
-    <h2>代購報價系統 v11.10</h2>
+    <h2>代購報價系統 v11.11</h2>
 
     <div class="form-group url-box">
         <label>0. 貼上官網商品網址（選填，自動帶入路線、品名、色碼）</label>
@@ -87,8 +87,7 @@
                 <option value="linkou">🇹🇼 林口 Outlet</option>
             </optgroup>
             <optgroup label="澳洲 Shipgo 集運">
-                <option value="au_regular">🇦🇺 澳洲正價</option>
-                <option value="au_wmtm">🇦🇺 澳洲特價／撿寶</option>
+                <option value="au">🇦🇺 澳洲（Shipgo）</option>
             </optgroup>
         </select>
         <div class="hint" id="routeInfo"></div>
@@ -302,8 +301,7 @@ const ROUTES = {
     // 台灣（舊公式）
     linkou: { group: 'tw', currency: 'TWD', name: '台幣', info: '台幣・成本 × 1.12，至少加 150' },
     // 澳洲 Shipgo（舊公式）
-    au_regular: { group: 'au', currency: 'AUD', name: '澳幣', mult: 27.37, title: '澳洲正價', info: '澳幣・Shipgo 集運・澳幣價 × 27.37' },
-    au_wmtm:    { group: 'au', currency: 'AUD', name: '澳幣', mult: 36.53, title: '澳洲特價', info: '澳幣・Shipgo 集運・澳幣價 × 36.53' }
+    au: { group: 'au', currency: 'AUD', name: '澳幣', title: '澳洲', info: '澳幣・Shipgo 集運（未滿 2 磅收 270，之後每磅 135）・到台成本 ＋ 建議加價' }
 };
 const CARD_FEE = 1.015;      // 刷卡手續費 1.5%
 const MIN_WAYBILL_LB = 2;    // 紅海加拿大／美國每張運單最低 2 磅
@@ -329,6 +327,7 @@ window.onload = function () {
     try {
         const a = localStorage.getItem('daigou_markup'); if (a) markups.redsea = parseFloat(a) || markups.redsea;
         const b = localStorage.getItem('daigou_markup_japan'); if (b) markups.japan = parseFloat(b) || markups.japan;
+        const c = localStorage.getItem('daigou_markup_au'); if (c) markups.au = parseFloat(c) || markups.au;
     } catch (e) {}
     onRouteChange();
     fetch('https://open.er-api.com/v6/latest/TWD')
@@ -365,14 +364,12 @@ function onRouteChange() {
     show('weightHint', g === 'redsea');
     show('discountGroup', g === 'japan' || g === 'tw');
     show('shipAloneGroup', g === 'redsea');
-    show('markupGroup', g === 'redsea' || !!r.useMarkup);
-    if (g === 'redsea' || r.useMarkup) {
+    show('markupGroup', g === 'redsea' || g === 'au' || !!r.useMarkup);
+    if (g === 'redsea' || g === 'au' || r.useMarkup) {
         const k = markupKey();
         $('markup').value = markups[k];
-        $('markupLabel').innerText = '5. 建議加價（每件・' + (k === 'japan' ? '日本 Lulu' : '紅海線') + '）';
-        $('markupNote').innerText = k === 'japan'
-            ? '售價 = 到台成本 ＋ 加價，取最接近的整十元。日本 Outlet、門市／官網共用，跟紅海線分開設定。改了會自動記住。'
-            : '售價 = 到台成本 ＋ 加價，取最接近的整十元。到台成本 3,000 以內適用，加拿大／美國共用。改了會自動記住。';
+        $('markupLabel').innerText = '5. 建議加價（每件・' + MARKUP_NAME[k] + '）';
+        $('markupNote').innerText = MARKUP_NOTE[k];
     }
     show('ausBoxGroup', g === 'au');
     show('notesCard', g === 'redsea');
@@ -401,9 +398,16 @@ function niceInRange(lo, hi) {
     return (p >= lo) ? p : Math.ceil(lo / 10) * 10;
 }
 
-// 建議加價：紅海線、日本 Lulu 分開設定
-let markups = { redsea: 370, japan: 420 };
-const markupKey = () => route().group === 'japan' ? 'japan' : 'redsea';
+// 建議加價：紅海線、日本 Lulu、澳洲各自設定
+let markups = { redsea: 370, japan: 420, au: 370 };
+const MARKUP_STORE = { redsea: 'daigou_markup', japan: 'daigou_markup_japan', au: 'daigou_markup_au' };
+const MARKUP_NAME = { redsea: '紅海線', japan: '日本 Lulu', au: '澳洲' };
+const MARKUP_NOTE = {
+    redsea: '售價 = 到台成本 ＋ 加價，取最接近的整十元。到台成本 3,000 以內適用，加拿大／美國共用。改了會自動記住。',
+    japan: '售價 = 到台成本 ＋ 加價，取最接近的整十元。日本 Outlet、門市／官網共用，跟其他線分開設定。改了會自動記住。',
+    au: '售價 = 到台成本 ＋ 加價，取最接近的整十元。到台成本 3,000 以內適用，跟其他線分開設定。改了會自動記住。'
+};
+const markupKey = () => { const g = route().group; return g === 'japan' ? 'japan' : g === 'au' ? 'au' : 'redsea'; };
 
 function getMarkup() {
     const m = parseFloat($('markup').value);
@@ -414,7 +418,7 @@ function onMarkupChange() {
     const k = markupKey();
     const m = parseFloat($('markup').value);
     if (!isNaN(m)) markups[k] = m;
-    try { localStorage.setItem(k === 'japan' ? 'daigou_markup_japan' : 'daigou_markup', $('markup').value); } catch (e) {}
+    try { localStorage.setItem(MARKUP_STORE[k], $('markup').value); } catch (e) {}
     calculate();
 }
 
@@ -510,10 +514,9 @@ function calculate() {
         shipFormula = 'Shipgo 運費：' + (weight < MIN_WAYBILL_LB ? '最低 2 磅' : weight + ' 磅') + ' × 135 = ' + ship;
         if ($('ausNeedBox').checked) { ship += 100; shipFormula += ' ＋ 換紙箱 100'; }
         costFormula = p + ' × ' + fx + '（計算用匯率）× 1.015 = ' + unitCost.toLocaleString();
-        let sp = p * r.mult;
-        if (sp - (unitCost + ship) < 250) sp = unitCost + ship + 250;
-        price = ceil10(sp);
-        rule = r.title + '：澳幣價 × ' + r.mult + '，利潤至少 250';
+        const s = suggestRedsea(unitCost + ship, $('category').value === 'bra');
+        price = s.price; rule = s.rule;
+        if (s.needConfirm) warns += '<div class="warn red">⚠️ 到台成本超過 3,000，售價是暫估（加 10～15%），請確認後再報價。</div>';
     }
 
     const landed = unitCost + ship;
@@ -596,7 +599,7 @@ function parseProductUrl() {
     // 判斷官網
     let routeKey = null, site = '';
     if (host.includes('lululemon.com.au') || /\/en-au\b/.test(path)) {
-        routeKey = $('route').value.startsWith('au_') ? $('route').value : 'au_regular'; site = '澳洲官網';
+        routeKey = 'au'; site = '澳洲官網';
     } else if (host.includes('lululemon.co.jp') || /\/ja-jp\b/.test(path)) {
         routeKey = $('route').value.startsWith('japan_') ? $('route').value : 'japan_lulu_store'; site = '日本官網';
     } else if (/\/en-ca\b|\/fr-ca\b/.test(path) || host.includes('lululemon.ca')) {
