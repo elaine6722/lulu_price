@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>代購報價與訂單系統 v11.11</title>
+    <title>代購報價與訂單系統 v11.12</title>
     <style>
         :root { --primary: #ff4757; --bg: #f1f2f6; --accent: #2ed573; --profit: #ffa502; --sec: #1e90ff; }
         body { font-family: -apple-system, "PingFang TC", "Microsoft JhengHei", sans-serif; background: var(--bg); display: flex; flex-direction: column; align-items: center; padding: 20px; margin: 0; }
@@ -63,7 +63,7 @@
 
 <!-- 區塊一：報價計算 -->
 <div class="card">
-    <h2>代購報價系統 v11.11</h2>
+    <h2>代購報價系統 v11.12</h2>
 
     <div class="form-group url-box">
         <label>0. 貼上官網商品網址（選填，自動帶入路線、品名、色碼）</label>
@@ -301,7 +301,7 @@ const ROUTES = {
     // 台灣（舊公式）
     linkou: { group: 'tw', currency: 'TWD', name: '台幣', info: '台幣・成本 × 1.12，至少加 150' },
     // 澳洲 Shipgo（舊公式）
-    au: { group: 'au', currency: 'AUD', name: '澳幣', title: '澳洲', info: '澳幣・Shipgo 集運（未滿 2 磅收 270，之後每磅 135）・到台成本 ＋ 建議加價' }
+    au: { group: 'au', currency: 'AUD', name: '澳幣', title: '澳洲', info: '澳幣・Shipgo 集運每磅 NT$135（依重量比例）・到台成本 ＋ 建議加價' }
 };
 const CARD_FEE = 1.015;      // 刷卡手續費 1.5%
 const MIN_WAYBILL_LB = 2;    // 紅海加拿大／美國每張運單最低 2 磅
@@ -363,7 +363,7 @@ function onRouteChange() {
     show('weightBlock', g === 'redsea' || g === 'au');
     show('weightHint', g === 'redsea');
     show('discountGroup', g === 'japan' || g === 'tw');
-    show('shipAloneGroup', g === 'redsea');
+    show('shipAloneGroup', g === 'redsea' || g === 'au');
     show('markupGroup', g === 'redsea' || g === 'au' || !!r.useMarkup);
     if (g === 'redsea' || g === 'au' || r.useMarkup) {
         const k = markupKey();
@@ -509,9 +509,18 @@ function calculate() {
     } else { // 澳洲
         const raw = p * fx * CARD_FEE;
         unitCost = Math.round(raw);
-        const lb = Math.max(weight, MIN_WAYBILL_LB);
-        ship = Math.round(lb * 135);
-        shipFormula = 'Shipgo 運費：' + (weight < MIN_WAYBILL_LB ? '最低 2 磅' : weight + ' 磅') + ' × 135 = ' + ship;
+        // Shipgo：每磅 135（2 磅 270），每件依重量比例分攤；整張運單最低 2 磅
+        const totalLb = weight * qty;
+        const alone = $('shipAlone').checked;
+        const underMin = totalLb < MIN_WAYBILL_LB;
+        if (alone && underMin) {
+            ship = Math.round(MIN_WAYBILL_LB * 135 / qty);
+            shipFormula = 'Shipgo 運費：單獨寄最低 2 磅 × 135' + (qty > 1 ? ' ÷ ' + qty + ' 件' : '') + ' = ' + ship + '（每件）';
+        } else {
+            ship = Math.round(weight * 135);
+            shipFormula = 'Shipgo 運費：' + weight + ' 磅 × 135 = ' + ship;
+        }
+        if (!alone && underMin) warns += '<div class="warn">📦 這筆共 ' + (+totalLb.toFixed(2)) + ' 磅，未滿 2 磅。要跟其他訂單合併寄，運費才會跟公式一樣；單獨寄請勾選上面的「單獨寄」。</div>';
         if ($('ausNeedBox').checked) { ship += 100; shipFormula += ' ＋ 換紙箱 100'; }
         costFormula = p + ' × ' + fx + '（計算用匯率）× 1.015 = ' + unitCost.toLocaleString();
         const s = suggestRedsea(unitCost + ship, $('category').value === 'bra');
