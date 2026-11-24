@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>代購報價與訂單系統 v11.12</title>
+    <title>代購報價與訂單系統 v11.13</title>
     <style>
         :root { --primary: #ff4757; --bg: #f1f2f6; --accent: #2ed573; --profit: #ffa502; --sec: #1e90ff; }
         body { font-family: -apple-system, "PingFang TC", "Microsoft JhengHei", sans-serif; background: var(--bg); display: flex; flex-direction: column; align-items: center; padding: 20px; margin: 0; }
@@ -63,7 +63,7 @@
 
 <!-- 區塊一：報價計算 -->
 <div class="card">
-    <h2>代購報價系統 v11.12</h2>
+    <h2>代購報價系統 v11.13</h2>
 
     <div class="form-group url-box">
         <label>0. 貼上官網商品網址（選填，自動帶入路線、品名、色碼）</label>
@@ -77,6 +77,7 @@
             <optgroup label="紅海集運">
                 <option value="CA" selected>🇨🇦 加拿大官網（紅海 CAA）</option>
                 <option value="US">🇺🇸 美國官網（紅海 BTK）</option>
+                <option value="JP">🇯🇵 日本官網（紅海 JTA）</option>
             </optgroup>
             <optgroup label="日本">
                 <option value="japan_lulu_outlet">🇯🇵 日本 Outlet</option>
@@ -252,7 +253,8 @@
     <ul>
         <li>EZWAY 每張運單 NT$3</li>
         <li>保險：申報值 1 萬以下 2%、3 萬以下 3%、5 萬以下 5%</li>
-        <li>每張運單最低以 2 磅計，小件單獨寄會比公式貴，合併寄送才準</li>
+        <li>加拿大／美國每張運單最低以 2 磅計，小件單獨寄會比公式貴，合併寄送才準</li>
+        <li>日本 JTA：首重 0.5kg NT$120，比續重貴 NT$40，每張運單收一次（公式未計入）；申報值上限 3 萬</li>
     </ul>
     <h3>⚠️ 報價前核對</h3>
     <ul>
@@ -293,10 +295,12 @@
 const ROUTES = {
     // 紅海集運（新公式）
     CA: { group: 'redsea', currency: 'CAD', name: '加幣', tax: 1.05, perLb: 144, info: '加幣・州稅 5%・紅海 CAA 線每磅 NT$144' },
+    JP: { group: 'redsea', currency: 'JPY', name: '日幣', tax: 1.00, byKg: true, firstKg: 0.5, firstFee: 120, stepKg: 0.1, stepFee: 16, markupKey: 'jp',
+          info: '日幣・Lulu 日本官網・紅海 JTA 線（空運、不含頻繁買家稅）首重 0.5kg NT$120、續重每 0.1kg NT$16' },
     US: { group: 'redsea', currency: 'USD', name: '美金', tax: 1.00, perLb: 178, info: '美金・免稅・紅海奧勒岡 BOM 倉 BTK 線每磅 NT$178' },
     // 日本（舊公式）
     japan_lulu_outlet: { group: 'japan', currency: 'JPY', name: '日幣', useMarkup: true, ship: 100, title: '日本 Outlet', info: '日幣・到台成本（含運費 100）＋ 建議加價' },
-    japan_lulu_store:  { group: 'japan', currency: 'JPY', name: '日幣', useMarkup: true, ship: 100, title: '日本門市／官網', info: '日幣・到台成本（含運費 100）＋ 建議加價' },
+    japan_lulu_store:  { group: 'japan', currency: 'JPY', name: '日幣', useMarkup: true, ship: 100, title: '日本門市', info: '日幣・到台成本（含運費 100）＋ 建議加價' },
     small_items:       { group: 'japan', currency: 'JPY', name: '日幣', margin: 1.20, ship: 80,  minAdd: 120, title: '小物／藥妝', info: '日幣・成本 × 1.20 ＋ 運費 80，至少加 120' },
     // 台灣（舊公式）
     linkou: { group: 'tw', currency: 'TWD', name: '台幣', info: '台幣・成本 × 1.12，至少加 150' },
@@ -304,7 +308,8 @@ const ROUTES = {
     au: { group: 'au', currency: 'AUD', name: '澳幣', title: '澳洲', info: '澳幣・Shipgo 集運每磅 NT$135（依重量比例）・到台成本 ＋ 建議加價' }
 };
 const CARD_FEE = 1.015;      // 刷卡手續費 1.5%
-const MIN_WAYBILL_LB = 2;    // 紅海加拿大／美國每張運單最低 2 磅
+const MIN_WAYBILL_LB = 2;
+const LB_TO_KG = 0.4536;    // 紅海加拿大／美國每張運單最低 2 磅
 const FX_SPREAD = 1.02;      // 所有幣別：Visa 匯率 + 2% 匯差
 
 // Visa 匯率（未加匯差），連網失敗時的預設值
@@ -328,6 +333,7 @@ window.onload = function () {
         const a = localStorage.getItem('daigou_markup'); if (a) markups.redsea = parseFloat(a) || markups.redsea;
         const b = localStorage.getItem('daigou_markup_japan'); if (b) markups.japan = parseFloat(b) || markups.japan;
         const c = localStorage.getItem('daigou_markup_au'); if (c) markups.au = parseFloat(c) || markups.au;
+        const e = localStorage.getItem('daigou_markup_jp_redsea'); if (e) markups.jp = parseFloat(e) || markups.jp;
     } catch (e) {}
     onRouteChange();
     fetch('https://open.er-api.com/v6/latest/TWD')
@@ -364,6 +370,7 @@ function onRouteChange() {
     show('weightHint', g === 'redsea');
     show('discountGroup', g === 'japan' || g === 'tw');
     show('shipAloneGroup', g === 'redsea' || g === 'au');
+    $('shipAloneText').innerText = r.byKg ? '這筆會單獨寄（首重 0.5kg NT$120，續重每 0.1kg 進位）' : '這筆會單獨寄（運費最低以 2 磅計）';
     show('markupGroup', g === 'redsea' || g === 'au' || !!r.useMarkup);
     if (g === 'redsea' || g === 'au' || r.useMarkup) {
         const k = markupKey();
@@ -399,15 +406,16 @@ function niceInRange(lo, hi) {
 }
 
 // 建議加價：紅海線、日本 Lulu、澳洲各自設定
-let markups = { redsea: 370, japan: 420, au: 370 };
-const MARKUP_STORE = { redsea: 'daigou_markup', japan: 'daigou_markup_japan', au: 'daigou_markup_au' };
-const MARKUP_NAME = { redsea: '紅海線', japan: '日本 Lulu', au: '澳洲' };
+let markups = { redsea: 370, japan: 420, au: 370, jp: 370 };
+const MARKUP_STORE = { redsea: 'daigou_markup', japan: 'daigou_markup_japan', au: 'daigou_markup_au', jp: 'daigou_markup_jp_redsea' };
+const MARKUP_NAME = { redsea: '加拿大／美國', japan: '日本 Lulu', au: '澳洲', jp: '日本官網（紅海）' };
 const MARKUP_NOTE = {
     redsea: '售價 = 到台成本 ＋ 加價，取最接近的整十元。到台成本 3,000 以內適用，加拿大／美國共用。改了會自動記住。',
     japan: '售價 = 到台成本 ＋ 加價，取最接近的整十元。日本 Outlet、門市／官網共用，跟其他線分開設定。改了會自動記住。',
-    au: '售價 = 到台成本 ＋ 加價，取最接近的整十元。到台成本 3,000 以內適用，跟其他線分開設定。改了會自動記住。'
+    au: '售價 = 到台成本 ＋ 加價，取最接近的整十元。到台成本 3,000 以內適用，跟其他線分開設定。改了會自動記住。',
+    jp: '售價 = 到台成本 ＋ 加價，取最接近的整十元。到台成本 3,000 以內適用，跟其他線分開設定。改了會自動記住。'
 };
-const markupKey = () => { const g = route().group; return g === 'japan' ? 'japan' : g === 'au' ? 'au' : 'redsea'; };
+const markupKey = () => { if (route().markupKey) return route().markupKey; const g = route().group; return g === 'japan' ? 'japan' : g === 'au' ? 'au' : 'redsea'; };
 
 function getMarkup() {
     const m = parseFloat($('markup').value);
@@ -467,15 +475,30 @@ function calculate() {
         const totalLb = weight * qty;
         const alone = $('shipAlone').checked;
         const perQty = qty > 1 ? ' ÷ ' + qty + ' 件' : '';
-        const underMin = totalLb < MIN_WAYBILL_LB;
-        if (alone && underMin) {
-            ship = Math.round(MIN_WAYBILL_LB * r.perLb / qty);
-            shipFormula = '運費：單獨寄最低 2 磅 × ' + r.perLb + perQty + ' = ' + ship + '（每件）';
+        if (r.byKg) {
+            // 以公斤計（日本 JTA）：每件依重量比例 × 續重單價；單獨寄才算首重
+            const perKg = r.stepFee / r.stepKg;           // 每公斤 160
+            const kgEach = weight * LB_TO_KG, totalKg = kgEach * qty;
+            if (alone) {
+                const billed = Math.max(r.firstKg, Math.ceil(totalKg / r.stepKg - 1e-9) * r.stepKg);
+                const steps = Math.round((billed - r.firstKg) / r.stepKg);
+                ship = Math.round((r.firstFee + steps * r.stepFee) / qty);
+                shipFormula = '運費：單獨寄共 ' + (+totalKg.toFixed(2)) + ' kg → 計費 ' + (+billed.toFixed(1)) + ' kg（首重 ' + r.firstFee + '＋續重 ' + steps + ' × ' + r.stepFee + '）' + perQty + ' = ' + ship + '（每件）';
+            } else {
+                ship = Math.round(kgEach * perKg);
+                shipFormula = '運費：' + weight + ' 磅（' + (+kgEach.toFixed(2)) + ' kg）× 每公斤 ' + perKg + ' = ' + ship;
+            }
         } else {
-            ship = Math.round(weight * r.perLb);
-            shipFormula = '運費：' + weight + ' 磅 × ' + r.perLb + ' = ' + ship;
+            const underMin = totalLb < MIN_WAYBILL_LB;
+            if (alone && underMin) {
+                ship = Math.round(MIN_WAYBILL_LB * r.perLb / qty);
+                shipFormula = '運費：單獨寄最低 2 磅 × ' + r.perLb + perQty + ' = ' + ship + '（每件）';
+            } else {
+                ship = Math.round(weight * r.perLb);
+                shipFormula = '運費：' + weight + ' 磅 × ' + r.perLb + ' = ' + ship;
+            }
+            if (!alone && underMin) warns += '<div class="warn">📦 這筆共 ' + (+totalLb.toFixed(2)) + ' 磅，未滿 2 磅。要跟其他訂單合併寄，運費才會跟公式一樣；單獨寄請勾選上面的「單獨寄」。</div>';
         }
-        if (!alone && underMin) warns += '<div class="warn">📦 這筆共 ' + (+totalLb.toFixed(2)) + ' 磅，未滿 2 磅。要跟其他訂單合併寄，運費才會跟公式一樣；單獨寄請勾選上面的「單獨寄」。</div>';
         costFormula = p + (r.tax !== 1 ? ' × 1.05' : '') + ' × ' + fx + '（計算用匯率）× 1.015 = ' + unitCost.toLocaleString();
         const s = suggestRedsea(unitCost + ship, $('category').value === 'bra');
         price = s.price; rule = s.rule;
@@ -610,7 +633,7 @@ function parseProductUrl() {
     if (host.includes('lululemon.com.au') || /\/en-au\b/.test(path)) {
         routeKey = 'au'; site = '澳洲官網';
     } else if (host.includes('lululemon.co.jp') || /\/ja-jp\b/.test(path)) {
-        routeKey = $('route').value.startsWith('japan_') ? $('route').value : 'japan_lulu_store'; site = '日本官網';
+        routeKey = 'JP'; site = '日本官網';
     } else if (/\/en-ca\b|\/fr-ca\b/.test(path) || host.includes('lululemon.ca')) {
         routeKey = 'CA'; site = '加拿大官網';
     } else if (host === 'shop.lululemon.com' || host === 'www.lululemon.com' || /\/en-us\b/.test(path)) {
